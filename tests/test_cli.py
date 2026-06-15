@@ -209,8 +209,148 @@ class TestMisc:
 
 
 # --------------------------------------------------------------------------
-# link
+# tags
 # --------------------------------------------------------------------------
+class TestTagAdd:
+    def test_add_with_tags_persists(self, invoke, initialized: Path) -> None:
+        result = invoke("add", "My task", "--tags", "feature,urgent")
+        assert result.exit_code == 0
+        tasks = _state(initialized)["tasks"]
+        assert tasks[0]["tags"] == ["feature", "urgent"]
+
+    def test_add_without_tags_defaults_empty(self, invoke, initialized: Path) -> None:
+        invoke("add", "My task")
+        tasks = _state(initialized)["tasks"]
+        assert tasks[0]["tags"] == []
+
+    def test_add_tags_shown_in_output(self, invoke, initialized: Path) -> None:
+        result = invoke("add", "My task", "--tags", "feature")
+        assert "feature" in result.output
+
+    def test_add_tags_whitespace_stripped(self, invoke, initialized: Path) -> None:
+        invoke("add", "My task", "--tags", " feature , urgent ")
+        tasks = _state(initialized)["tasks"]
+        assert tasks[0]["tags"] == ["feature", "urgent"]
+
+    def test_add_empty_tag_rejected(self, invoke, initialized: Path) -> None:
+        result = invoke("add", "My task", "--tags", ",")
+        assert result.exit_code == 1
+        assert "tag" in result.output.lower()
+
+
+class TestTagCommand:
+    def test_tag_adds_tag(self, invoke, initialized: Path) -> None:
+        invoke("add", "My task")
+        tid = _first_id(initialized)
+        result = invoke("tag", tid, "feature")
+        assert result.exit_code == 0
+        tasks = _state(initialized)["tasks"]
+        assert "feature" in tasks[0]["tags"]
+
+    def test_tag_multiple_tags(self, invoke, initialized: Path) -> None:
+        invoke("add", "My task")
+        tid = _first_id(initialized)
+        invoke("tag", tid, "feature")
+        invoke("tag", tid, "urgent")
+        tasks = _state(initialized)["tasks"]
+        assert set(tasks[0]["tags"]) == {"feature", "urgent"}
+
+    def test_tag_idempotent(self, invoke, initialized: Path) -> None:
+        invoke("add", "My task")
+        tid = _first_id(initialized)
+        invoke("tag", tid, "feature")
+        result = invoke("tag", tid, "feature")
+        assert result.exit_code == 0
+        tasks = _state(initialized)["tasks"]
+        assert tasks[0]["tags"].count("feature") == 1
+
+    def test_tag_unknown_id_fails(self, invoke, initialized: Path) -> None:
+        result = invoke("tag", "zzzz", "feature")
+        assert result.exit_code == 1
+        assert "No task found" in result.output
+
+    def test_tag_empty_label_rejected(self, invoke, initialized: Path) -> None:
+        invoke("add", "My task")
+        tid = _first_id(initialized)
+        result = invoke("tag", tid, "  ")
+        assert result.exit_code == 1
+        assert "tag" in result.output.lower()
+
+
+class TestUntagCommand:
+    def test_untag_removes_tag(self, invoke, initialized: Path) -> None:
+        invoke("add", "My task", "--tags", "feature,urgent")
+        tid = _first_id(initialized)
+        result = invoke("untag", tid, "feature")
+        assert result.exit_code == 0
+        tasks = _state(initialized)["tasks"]
+        assert "feature" not in tasks[0]["tags"]
+        assert "urgent" in tasks[0]["tags"]
+
+    def test_untag_not_present_fails(self, invoke, initialized: Path) -> None:
+        invoke("add", "My task")
+        tid = _first_id(initialized)
+        result = invoke("untag", tid, "nosuch")
+        assert result.exit_code == 1
+        assert "not tagged" in result.output.lower() or "nosuch" in result.output.lower()
+
+    def test_untag_unknown_id_fails(self, invoke, initialized: Path) -> None:
+        result = invoke("untag", "zzzz", "feature")
+        assert result.exit_code == 1
+        assert "No task found" in result.output
+
+
+class TestListTagFilter:
+    def test_list_tag_filter_shows_matching(self, invoke, initialized: Path) -> None:
+        invoke("add", "Feature task", "--tags", "feature")
+        invoke("add", "Bug task", "--tags", "bug")
+        result = invoke("list", "--tag", "feature")
+        assert result.exit_code == 0
+        assert "Feature task" in result.output
+        assert "Bug task" not in result.output
+
+    def test_list_tag_filter_no_match_empty(self, invoke, initialized: Path) -> None:
+        invoke("add", "Feature task", "--tags", "feature")
+        result = invoke("list", "--tag", "bug")
+        assert result.exit_code == 0
+        assert "Feature task" not in result.output
+
+    def test_list_tag_filter_multiple_tags_any_match(
+        self, invoke, initialized: Path
+    ) -> None:
+        invoke("add", "Task A", "--tags", "alpha")
+        invoke("add", "Task B", "--tags", "beta")
+        invoke("add", "Task C", "--tags", "gamma")
+        result = invoke("list", "--tag", "alpha", "--tag", "beta")
+        assert "Task A" in result.output
+        assert "Task B" in result.output
+        assert "Task C" not in result.output
+
+
+class TestShowTags:
+    def test_show_displays_tags(self, invoke, initialized: Path) -> None:
+        invoke("add", "My task", "--tags", "feature,urgent")
+        tid = _first_id(initialized)
+        result = invoke("show", tid)
+        assert result.exit_code == 0
+        assert "feature" in result.output
+        assert "urgent" in result.output
+
+    def test_show_no_tags_shows_none(self, invoke, initialized: Path) -> None:
+        invoke("add", "My task")
+        tid = _first_id(initialized)
+        result = invoke("show", tid)
+        assert result.exit_code == 0
+        # should show something indicating no tags
+        assert "none" in result.output.lower() or "tags" in result.output.lower()
+
+
+class TestListShowsTags:
+    def test_list_shows_tags_column(self, invoke, initialized: Path) -> None:
+        invoke("add", "My task", "--tags", "feature")
+        result = invoke("list")
+        assert "feature" in result.output
+
 class TestLink:
     def test_link_persists_depends_on(self, invoke, initialized: Path) -> None:
         invoke("add", "A")

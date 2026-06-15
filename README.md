@@ -13,6 +13,7 @@ repository keeps its own independent task list.
 - Case-insensitive status input with aliases (`wip`, `done`, `in progress`, ...).
 - Atomic writes — the state file can't be corrupted by an interrupted save.
 - Task dependencies — link tasks so one blocks another, with cycle detection.
+- Task tags — label tasks with free-form tags; filter with `--tag`.
 
 ## Requirements
 
@@ -38,14 +39,19 @@ trackr --help
 ```bash
 trackr init                          # create .tasks/ in the current repo
 trackr add "Write the README"        # add a task (status: Todo)
+trackr add "Fix login bug" --tags "bug,urgent"  # add with tags
 trackr list                          # show open tasks (hides Done)
 trackr list --all                    # show everything, including Done
+trackr list --tag bug                # filter by tag
+trackr list --tag bug --tag urgent   # filter by multiple tags (any match)
 trackr status a3f9 "In Progress"     # update status (aliases ok: wip, done...)
 trackr status a3f9 done
+trackr tag a3f9 feature              # add a tag
+trackr untag a3f9 feature            # remove a tag
 trackr remove a3f9                   # delete a task
-trackr show a3f9                     # show full task detail + deps
+trackr show a3f9                     # show full task detail + deps + tags
 trackr link a3f9 b2c1                # a3f9 depends on b2c1 (b2c1 must finish first)
-trackr unlink a3f9 b2c1              # remove that dependency
+trackr unlink a3f9 b2c1             # remove that dependency
 trackr --version
 ```
 
@@ -54,11 +60,13 @@ trackr --version
 | Command | Description |
 | --- | --- |
 | `init` | Initialize the tracker in the current directory. |
-| `add "<desc>"` | Add a task; auto-assigns a short ID, status `Todo`. |
-| `list [--all/-a]` | List tasks in a table. Hides `Done` unless `--all`. |
+| `add "<desc>" [--tags t1,t2]` | Add a task; auto-assigns a short ID, status `Todo`. Optional comma-separated tags. |
+| `list [--all/-a] [--tag t]` | List tasks in a table. Hides `Done` unless `--all`. Filter by tag with `--tag` (repeatable). |
 | `status <id> <status>` | Set status to `Todo`, `In Progress`, or `Done`. |
+| `tag <id> <label>` | Add a tag to a task. |
+| `untag <id> <label>` | Remove a tag from a task. |
 | `remove <id>` | Delete a task. |
-| `show <id>` | Show full details: description, status, age, deps, blocks. |
+| `show <id>` | Show full details: description, status, age, tags, deps, blocks. |
 | `link <id> <blocker-id>` | Mark `<id>` as depending on `<blocker-id>`. |
 | `unlink <id> <blocker-id>` | Remove that dependency. |
 
@@ -87,31 +95,33 @@ your-repo/
     └── state.json
 ```
 
-`state.json` (schema version 2):
+`state.json` (schema version 3):
 
 ```json
 {
-  "version": 2,
+  "version": 3,
   "tasks": [
     {
       "id": "a3f9",
       "description": "Write the README",
       "status": "Todo",
       "created_at": "2026-06-15T10:30:00+00:00",
-      "depends_on": ["b2c1"]
+      "depends_on": ["b2c1"],
+      "tags": ["docs", "urgent"]
     },
     {
       "id": "b2c1",
       "description": "Design the API",
       "status": "In Progress",
       "created_at": "2026-06-15T09:00:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "tags": []
     }
   ]
 }
 ```
 
-Version 1 files (no `depends_on` field) are loaded transparently — old tasks get `depends_on: []`.
+Version 1 files (no `depends_on` field) and version 2 files (no `tags` field) are loaded transparently — old tasks get the missing fields defaulted to `[]`.
 
 ## Development
 

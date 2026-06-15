@@ -89,3 +89,24 @@ class NotLinked(TrackrError):
         super().__init__(
             f"Task '{dep_id}' does not depend on '{blocker_id}'."
         )
+
+
+class InvalidTag(TrackrError):
+    """Raised when a tag label is empty or otherwise invalid."""
+
+    def __init__(self, label: str) -> None:
+        self.label = label
+        super().__init__(
+            f"Invalid tag '{label}': tag labels must not be empty."
+        )
+
+
+class NotTagged(TrackrError):
+    """Raised when trying to remove a tag that isn't present on the task."""
+
+    def __init__(self, task_id: str, label: str) -> None:
+        self.task_id = task_id
+        self.label = label
+        super().__init__(
+            f"Task '{task_id}' is not tagged '{label}'."
+        )

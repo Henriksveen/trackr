@@ -58,7 +58,7 @@ class TestTaskSerde:
     def test_to_dict_uses_status_value(self) -> None:
         d = Task(id="x", description="d", status=Status.DONE).to_dict()
         assert d["status"] == "Done"
-        assert set(d) == {"id", "description", "status", "created_at", "depends_on"}
+        assert set(d) == {"id", "description", "status", "created_at", "depends_on", "tags"}
 
     def test_defaults(self) -> None:
         t = Task(id="x", description="d")
@@ -83,7 +83,7 @@ class TestTaskDependencies:
         t = Task(id="x", description="d", depends_on=["aaaa"])
         d = t.to_dict()
         assert d["depends_on"] == ["aaaa"]
-        assert set(d) == {"id", "description", "status", "created_at", "depends_on"}
+        assert set(d) == {"id", "description", "status", "created_at", "depends_on", "tags"}
 
     def test_from_dict_roundtrip_with_depends_on(self) -> None:
         original = Task(id="a1b2", description="hello", depends_on=["cccc"])
@@ -101,6 +101,36 @@ class TestTaskDependencies:
         }
         t = Task.from_dict(d)
         assert t.depends_on == []
+
+
+class TestTaskTags:
+    def test_tags_defaults_empty(self) -> None:
+        t = Task(id="x", description="d")
+        assert t.tags == []
+
+    def test_to_dict_includes_tags(self) -> None:
+        t = Task(id="x", description="d", tags=["feature", "urgent"])
+        d = t.to_dict()
+        assert d["tags"] == ["feature", "urgent"]
+        assert set(d) == {"id", "description", "status", "created_at", "depends_on", "tags"}
+
+    def test_from_dict_roundtrip_with_tags(self) -> None:
+        original = Task(id="a1b2", description="hello", tags=["bugfix"])
+        restored = Task.from_dict(original.to_dict())
+        assert restored == original
+        assert restored.tags == ["bugfix"]
+
+    def test_from_dict_missing_tags_defaults_empty(self) -> None:
+        """v2 records without tags field must load without error (backward compat)."""
+        d = {
+            "id": "a1b2",
+            "description": "old task",
+            "status": "Todo",
+            "created_at": "2026-06-15T10:00:00+00:00",
+            "depends_on": [],
+        }
+        t = Task.from_dict(d)
+        assert t.tags == []
 
 
 class TestGraphHelpers:

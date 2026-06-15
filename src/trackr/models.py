@@ -76,6 +76,7 @@ class Task:
     status: Status = Status.TODO
     created_at: str = field(default_factory=_utcnow_iso)
     depends_on: list[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
 
     # --- serialization -----------------------------------------------------
     def to_dict(self) -> dict:
@@ -85,6 +86,7 @@ class Task:
             "status": self.status.value,
             "created_at": self.created_at,
             "depends_on": list(self.depends_on),
+            "tags": list(self.tags),
         }
 
     @classmethod
@@ -95,6 +97,7 @@ class Task:
             status=Status(data["status"]),
             created_at=data["created_at"],
             depends_on=list(data.get("depends_on", [])),
+            tags=list(data.get("tags", [])),
         )
 
     # --- display helpers ---------------------------------------------------

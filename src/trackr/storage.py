@@ -19,7 +19,7 @@ from trackr.models import Task
 
 STORE_DIRNAME = ".tasks"
 STATE_FILENAME = "state.json"
-STATE_VERSION = 2
+STATE_VERSION = 3
 _ID_BYTES = 2  # 2 bytes -> 4 hex chars
 
 

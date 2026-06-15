@@ -29,7 +29,7 @@ class TestInit:
         assert (store / STATE_FILENAME).is_file()
         # fresh state is a valid, empty payload
         payload = json.loads((store / STATE_FILENAME).read_text())
-        assert payload == {"version": 2, "tasks": []}
+        assert payload == {"version": 3, "tasks": []}
 
     def test_idempotent_returns_false(self, workdir: Path) -> None:
         init_store(workdir)
@@ -111,11 +111,70 @@ class TestFindTask:
         assert find_task([Task(id="a1b2", description="d")], "ffff") is None
 
 
-class TestSchemaV2:
-    def test_save_emits_version_2(self, initialized: Path) -> None:
+class TestSchemaV3:
+    def test_save_emits_version_3(self, initialized: Path) -> None:
         save_tasks(initialized, [Task(id="aaaa", description="one")])
         payload = json.loads((initialized / STORE_DIRNAME / STATE_FILENAME).read_text())
-        assert payload["version"] == 2
+        assert payload["version"] == 3
+
+    def test_save_includes_tags(self, initialized: Path) -> None:
+        task = Task(id="aaaa", description="one", tags=["feature"])
+        save_tasks(initialized, [task])
+        payload = json.loads((initialized / STORE_DIRNAME / STATE_FILENAME).read_text())
+        assert payload["tasks"][0]["tags"] == ["feature"]
+
+    def test_load_v2_file_migrates_tags(self, initialized: Path) -> None:
+        """A version:2 file without tags must load cleanly with tags=[]."""
+        v2_payload = {
+            "version": 2,
+            "tasks": [
+                {
+                    "id": "a1b2",
+                    "description": "old task",
+                    "status": "Todo",
+                    "created_at": "2026-06-15T10:00:00+00:00",
+                    "depends_on": [],
+                }
+            ],
+        }
+        state_path = initialized / STORE_DIRNAME / STATE_FILENAME
+        state_path.write_text(json.dumps(v2_payload))
+        tasks = load_tasks(initialized)
+        assert len(tasks) == 1
+        assert tasks[0].tags == []
+
+    def test_load_v1_file_migrates_both(self, initialized: Path) -> None:
+        """A version:1 file without depends_on/tags must load cleanly."""
+        v1_payload = {
+            "version": 1,
+            "tasks": [
+                {
+                    "id": "a1b2",
+                    "description": "old task",
+                    "status": "Todo",
+                    "created_at": "2026-06-15T10:00:00+00:00",
+                }
+            ],
+        }
+        state_path = initialized / STORE_DIRNAME / STATE_FILENAME
+        state_path.write_text(json.dumps(v1_payload))
+        tasks = load_tasks(initialized)
+        assert tasks[0].depends_on == []
+        assert tasks[0].tags == []
+
+    def test_roundtrip_with_tags(self, initialized: Path) -> None:
+        tasks = [Task(id="aaaa", description="one", tags=["alpha", "beta"])]
+        save_tasks(initialized, tasks)
+        loaded = load_tasks(initialized)
+        assert loaded[0].tags == ["alpha", "beta"]
+
+
+class TestSchemaV2:
+    def test_save_emits_version_3(self, initialized: Path) -> None:
+        """save_tasks always emits the current schema version (3)."""
+        save_tasks(initialized, [Task(id="aaaa", description="one")])
+        payload = json.loads((initialized / STORE_DIRNAME / STATE_FILENAME).read_text())
+        assert payload["version"] == 3
 
     def test_save_includes_depends_on(self, initialized: Path) -> None:
         task = Task(id="aaaa", description="one", depends_on=["bbbb"])

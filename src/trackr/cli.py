@@ -17,7 +17,9 @@ from trackr import __version__
 from trackr.errors import (
     CircularDependency,
     EmptyDescription,
+    InvalidTag,
     NotLinked,
+    NotTagged,
     SelfDependency,
     TaskNotFound,
     TrackrError,
@@ -87,6 +89,15 @@ def _main(
     """trackr root callback (hosts the global --version flag)."""
 
 
+def _parse_tags(raw: str) -> list[str]:
+    """Split a comma-separated tag string, strip whitespace, reject empty labels."""
+    parts = [t.strip() for t in raw.split(",")]
+    for part in parts:
+        if not part:
+            raise InvalidTag(part)
+    return parts
+
+
 # --------------------------------------------------------------------------
 # init
 # --------------------------------------------------------------------------
@@ -114,22 +125,28 @@ def init() -> None:
 @handle_errors
 def add(
     description: str = typer.Argument(..., help="The task description."),
+    tags: str = typer.Option(
+        "", "--tags", help="Comma-separated tags (e.g. 'feature,urgent')."
+    ),
 ) -> None:
     """Add a new task (status defaults to 'Todo')."""
     desc = description.strip()
     if not desc:
         raise EmptyDescription()
 
+    tag_list = _parse_tags(tags) if tags.strip() else []
+
     root = find_repo_root()
     tasks = load_tasks(root)
     new_id = generate_id({t.id for t in tasks})
-    task = Task(id=new_id, description=desc)
+    task = Task(id=new_id, description=desc, tags=tag_list)
     tasks.append(task)
     save_tasks(root, tasks)
 
+    tag_suffix = f" [dim]({', '.join(task.tags)})[/]" if task.tags else ""
     console.print(
         f"[green]Added task[/] [bold]{task.id}[/]: {task.description} "
-        f"[dim]({task.status})[/]"
+        f"[dim]({task.status})[/]{tag_suffix}"
     )
 
 
@@ -142,12 +159,20 @@ def list_tasks(
     show_all: bool = typer.Option(
         False, "--all", "-a", help="Include tasks marked 'Done'."
     ),
+    tag: list[str] = typer.Option(
+        [], "--tag", help="Filter by tag (repeatable; any match shown)."
+    ),
 ) -> None:
     """List tasks in a table (hides 'Done' tasks unless --all)."""
     root = find_repo_root()
     tasks = load_tasks(root)
 
     visible = tasks if show_all else [t for t in tasks if t.status is not Status.DONE]
+
+    # Apply tag filter (OR semantics: show task if it has any of the requested tags)
+    if tag:
+        filter_tags = {t.lower() for t in tag}
+        visible = [t for t in visible if any(tg.lower() in filter_tags for tg in t.tags)]
 
     if not tasks:
         console.print("[dim]No tasks yet. Add one with[/] [bold]trackr add \"...\"[/]")
@@ -163,6 +188,7 @@ def list_tasks(
     table.add_column("ID", style="bold", no_wrap=True)
     table.add_column("Description")
     table.add_column("Status", no_wrap=True)
+    table.add_column("Tags")
     table.add_column("Deps", no_wrap=True)
     table.add_column("Created", no_wrap=True)
 
@@ -177,10 +203,13 @@ def list_tasks(
         else:
             deps_cell = Text("—", style="dim")
 
+        tags_cell = Text(", ".join(task.tags), style="dim cyan") if task.tags else Text("—", style="dim")
+
         table.add_row(
             task.id,
             task.description,
             f"[{style}]{task.status}[/]",
+            tags_cell,
             deps_cell,
             task.created_display(),
         )
@@ -352,6 +381,61 @@ def unlink(
 
 
 # --------------------------------------------------------------------------
+# tag
+# --------------------------------------------------------------------------
+@app.command()
+@handle_errors
+def tag(
+    task_id: str = typer.Argument(..., help="The ID of the task to tag."),
+    label: str = typer.Argument(..., help="Tag label to add."),
+) -> None:
+    """Add a tag to a task."""
+    label = label.strip()
+    if not label:
+        raise InvalidTag(label)
+
+    root = find_repo_root()
+    tasks = load_tasks(root)
+    task = find_task(tasks, task_id)
+    if task is None:
+        raise TaskNotFound(task_id)
+
+    if label in task.tags:
+        console.print(
+            f"[yellow]Task[/] [bold]{task.id}[/] is already tagged [bold]{label}[/]. Nothing to do."
+        )
+        return
+
+    task.tags.append(label)
+    save_tasks(root, tasks)
+    console.print(f"[green]Tagged[/] [bold]{task.id}[/] with [bold]{label}[/]")
+
+
+# --------------------------------------------------------------------------
+# untag
+# --------------------------------------------------------------------------
+@app.command()
+@handle_errors
+def untag(
+    task_id: str = typer.Argument(..., help="The ID of the task to untag."),
+    label: str = typer.Argument(..., help="Tag label to remove."),
+) -> None:
+    """Remove a tag from a task."""
+    root = find_repo_root()
+    tasks = load_tasks(root)
+    task = find_task(tasks, task_id)
+    if task is None:
+        raise TaskNotFound(task_id)
+
+    if label not in task.tags:
+        raise NotTagged(task.id, label)
+
+    task.tags = [t for t in task.tags if t != label]
+    save_tasks(root, tasks)
+    console.print(f"[green]Removed tag[/] [bold]{label}[/] from [bold]{task.id}[/]")
+
+
+# --------------------------------------------------------------------------
 # show
 # --------------------------------------------------------------------------
 @app.command()
@@ -384,6 +468,8 @@ def show(
         f"[bold]Status:[/]      [{style}]{task.status}[/]",
         f"[bold]Created:[/]     {task.created_display()}"
         + (f"  [dim]({age})[/]" if age else ""),
+        f"[bold]Tags:[/]        "
+        + (f"[cyan]{', '.join(task.tags)}[/]" if task.tags else "[dim]none[/]"),
     ]
 
     # Depends on
