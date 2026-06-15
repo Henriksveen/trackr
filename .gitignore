@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# uv / virtualenv
+.venv/
+uv.lock
+
+# trackr's own local task state (dev/testing). Downstream repos commit theirs.
+.tasks/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
