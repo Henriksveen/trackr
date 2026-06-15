@@ -12,6 +12,7 @@ repository keeps its own independent task list.
 - Clean Rich-rendered table output.
 - Case-insensitive status input with aliases (`wip`, `done`, `in progress`, ...).
 - Atomic writes — the state file can't be corrupted by an interrupted save.
+- Task dependencies — link tasks so one blocks another, with cycle detection.
 
 ## Requirements
 
@@ -42,6 +43,9 @@ trackr list --all                    # show everything, including Done
 trackr status a3f9 "In Progress"     # update status (aliases ok: wip, done...)
 trackr status a3f9 done
 trackr remove a3f9                   # delete a task
+trackr show a3f9                     # show full task detail + deps
+trackr link a3f9 b2c1                # a3f9 depends on b2c1 (b2c1 must finish first)
+trackr unlink a3f9 b2c1              # remove that dependency
 trackr --version
 ```
 
@@ -54,6 +58,9 @@ trackr --version
 | `list [--all/-a]` | List tasks in a table. Hides `Done` unless `--all`. |
 | `status <id> <status>` | Set status to `Todo`, `In Progress`, or `Done`. |
 | `remove <id>` | Delete a task. |
+| `show <id>` | Show full details: description, status, age, deps, blocks. |
+| `link <id> <blocker-id>` | Mark `<id>` as depending on `<blocker-id>`. |
+| `unlink <id> <blocker-id>` | Remove that dependency. |
 
 ### Status aliases
 
@@ -63,6 +70,15 @@ trackr --version
 | `In Progress` | `in progress`, `inprogress`, `progress`, `wip`, `ip`, `doing`, `started` |
 | `Done` | `done`, `complete`, `completed`, `finished`, `closed` |
 
+### Dependencies
+
+- `trackr link A B` means "A depends on B" — B must finish before A.
+- The `list` table shows a **Deps** column: `⊘ blocked (N)` when open blockers exist, `✓ clear` when all blockers are done, `—` when no deps.
+- Moving a blocked task to `In Progress` or `Done` is allowed but prints a warning listing open blockers.
+- Deleting a blocker automatically removes it from all dependent tasks' `depends_on` lists and prints a warning.
+- Linking to yourself, or creating a cycle (A→B→A), is rejected with exit code 1.
+- Re-linking an already-existing dependency is a silent no-op (exit 0).
+
 ## Storage layout
 
 ```
@@ -71,21 +87,31 @@ your-repo/
     └── state.json
 ```
 
-`state.json`:
+`state.json` (schema version 2):
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "tasks": [
     {
       "id": "a3f9",
       "description": "Write the README",
       "status": "Todo",
-      "created_at": "2026-06-15T10:30:00+00:00"
+      "created_at": "2026-06-15T10:30:00+00:00",
+      "depends_on": ["b2c1"]
+    },
+    {
+      "id": "b2c1",
+      "description": "Design the API",
+      "status": "In Progress",
+      "created_at": "2026-06-15T09:00:00+00:00",
+      "depends_on": []
     }
   ]
 }
 ```
+
+Version 1 files (no `depends_on` field) are loaded transparently — old tasks get `depends_on: []`.
 
 ## Development
 

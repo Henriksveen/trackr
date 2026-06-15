@@ -75,6 +75,7 @@ class Task:
     description: str
     status: Status = Status.TODO
     created_at: str = field(default_factory=_utcnow_iso)
+    depends_on: list[str] = field(default_factory=list)
 
     # --- serialization -----------------------------------------------------
     def to_dict(self) -> dict:
@@ -83,6 +84,7 @@ class Task:
             "description": self.description,
             "status": self.status.value,
             "created_at": self.created_at,
+            "depends_on": list(self.depends_on),
         }
 
     @classmethod
@@ -92,6 +94,7 @@ class Task:
             description=data["description"],
             status=Status(data["status"]),
             created_at=data["created_at"],
+            depends_on=list(data.get("depends_on", [])),
         )
 
     # --- display helpers ---------------------------------------------------
@@ -104,3 +107,58 @@ class Task:
             return datetime.fromisoformat(self.created_at).strftime("%Y-%m-%d")
         except ValueError:
             return self.created_at
+
+
+# --------------------------------------------------------------------------
+# Graph helpers — pure domain, no I/O
+# --------------------------------------------------------------------------
+
+def _task_index(tasks: list[Task]) -> dict[str, Task]:
+    """Build a lowercase-id -> Task lookup dict."""
+    return {t.id.lower(): t for t in tasks}
+
+
+def is_blocked(task: Task, tasks: list[Task]) -> bool:
+    """Return True if *task* has at least one blocker that is not Done."""
+    index = _task_index(tasks)
+    for blocker_id in task.depends_on:
+        blocker = index.get(blocker_id.lower())
+        if blocker is not None and blocker.status is not Status.DONE:
+            return True
+    return False
+
+
+def open_blockers(task: Task, tasks: list[Task]) -> list[Task]:
+    """Return the list of blocker tasks that are not yet Done."""
+    index = _task_index(tasks)
+    result = []
+    for blocker_id in task.depends_on:
+        blocker = index.get(blocker_id.lower())
+        if blocker is not None and blocker.status is not Status.DONE:
+            result.append(blocker)
+    return result
+
+
+def would_cycle(tasks: list[Task], dependent_id: str, blocker_id: str) -> bool:
+    """Return True if adding ``dependent -> blocker`` would create a cycle.
+
+    Uses DFS: if *dependent_id* is reachable from *blocker_id* through
+    existing ``depends_on`` edges, the new link would close a cycle.
+    """
+    index = _task_index(tasks)
+    needle = dependent_id.lower()
+
+    visited: set[str] = set()
+    stack = [blocker_id.lower()]
+    while stack:
+        current = stack.pop()
+        if current == needle:
+            return True
+        if current in visited:
+            continue
+        visited.add(current)
+        node = index.get(current)
+        if node is not None:
+            for dep in node.depends_on:
+                stack.append(dep.lower())
+    return False

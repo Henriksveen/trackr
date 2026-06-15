@@ -59,3 +59,33 @@ class CorruptState(TrackrError):
             f"State file at '{path}' is corrupt or unreadable. "
             "Fix or delete the .tasks/ directory and re-run 'trackr init'."
         )
+
+
+class SelfDependency(TrackrError):
+    """Raised when a task is linked to itself."""
+
+    def __init__(self, task_id: str) -> None:
+        self.task_id = task_id
+        super().__init__(f"A task cannot depend on itself ('{task_id}').")
+
+
+class CircularDependency(TrackrError):
+    """Raised when linking would create a dependency cycle."""
+
+    def __init__(self, dep_id: str, blocker_id: str) -> None:
+        self.dep_id = dep_id
+        self.blocker_id = blocker_id
+        super().__init__(
+            f"Circular dependency: linking '{dep_id}' -> '{blocker_id}' would create a cycle."
+        )
+
+
+class NotLinked(TrackrError):
+    """Raised when trying to unlink tasks that are not linked."""
+
+    def __init__(self, dep_id: str, blocker_id: str) -> None:
+        self.dep_id = dep_id
+        self.blocker_id = blocker_id
+        super().__init__(
+            f"Task '{dep_id}' does not depend on '{blocker_id}'."
+        )

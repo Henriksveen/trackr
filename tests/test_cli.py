@@ -206,3 +206,206 @@ class TestMisc:
         assert invoke("status", tid, "done").exit_code == 0
         assert invoke("remove", tid).exit_code == 0
         assert _state(workdir)["tasks"] == []
+
+
+# --------------------------------------------------------------------------
+# link
+# --------------------------------------------------------------------------
+class TestLink:
+    def test_link_persists_depends_on(self, invoke, initialized: Path) -> None:
+        invoke("add", "A")
+        invoke("add", "B")
+        a_id, b_id = _ids(initialized)
+        result = invoke("link", a_id, b_id)
+        assert result.exit_code == 0
+        tasks = _state(initialized)["tasks"]
+        a_task = next(t for t in tasks if t["id"] == a_id)
+        assert b_id in a_task["depends_on"]
+
+    def test_link_idempotent_noop(self, invoke, initialized: Path) -> None:
+        invoke("add", "A")
+        invoke("add", "B")
+        a_id, b_id = _ids(initialized)
+        invoke("link", a_id, b_id)
+        result = invoke("link", a_id, b_id)
+        assert result.exit_code == 0
+        # still only one entry
+        tasks = _state(initialized)["tasks"]
+        a_task = next(t for t in tasks if t["id"] == a_id)
+        assert a_task["depends_on"].count(b_id) == 1
+
+    def test_link_self_fails(self, invoke, initialized: Path) -> None:
+        invoke("add", "A")
+        tid = _first_id(initialized)
+        result = invoke("link", tid, tid)
+        assert result.exit_code == 1
+        assert "itself" in result.output.lower() or "self" in result.output.lower()
+
+    def test_link_cycle_fails(self, invoke, initialized: Path) -> None:
+        invoke("add", "A")
+        invoke("add", "B")
+        a_id, b_id = _ids(initialized)
+        invoke("link", a_id, b_id)   # a depends on b
+        result = invoke("link", b_id, a_id)  # b depends on a — cycle
+        assert result.exit_code == 1
+        assert "cycle" in result.output.lower() or "circular" in result.output.lower()
+
+    def test_link_unknown_dependent_fails(self, invoke, initialized: Path) -> None:
+        invoke("add", "A")
+        tid = _first_id(initialized)
+        result = invoke("link", "zzzz", tid)
+        assert result.exit_code == 1
+        assert "No task found" in result.output
+
+    def test_link_unknown_blocker_fails(self, invoke, initialized: Path) -> None:
+        invoke("add", "A")
+        tid = _first_id(initialized)
+        result = invoke("link", tid, "zzzz")
+        assert result.exit_code == 1
+        assert "No task found" in result.output
+
+    def test_link_case_insensitive_ids(self, invoke, initialized: Path) -> None:
+        invoke("add", "A")
+        invoke("add", "B")
+        a_id, b_id = _ids(initialized)
+        result = invoke("link", a_id.upper(), b_id.upper())
+        assert result.exit_code == 0
+        tasks = _state(initialized)["tasks"]
+        a_task = next(t for t in tasks if t["id"] == a_id)
+        assert b_id in a_task["depends_on"]
+
+
+# --------------------------------------------------------------------------
+# unlink
+# --------------------------------------------------------------------------
+class TestUnlink:
+    def test_unlink_removes_dep(self, invoke, initialized: Path) -> None:
+        invoke("add", "A")
+        invoke("add", "B")
+        a_id, b_id = _ids(initialized)
+        invoke("link", a_id, b_id)
+        result = invoke("unlink", a_id, b_id)
+        assert result.exit_code == 0
+        tasks = _state(initialized)["tasks"]
+        a_task = next(t for t in tasks if t["id"] == a_id)
+        assert a_task["depends_on"] == []
+
+    def test_unlink_not_linked_fails(self, invoke, initialized: Path) -> None:
+        invoke("add", "A")
+        invoke("add", "B")
+        a_id, b_id = _ids(initialized)
+        result = invoke("unlink", a_id, b_id)
+        assert result.exit_code == 1
+        assert "not linked" in result.output.lower() or "not depend" in result.output.lower()
+
+    def test_unlink_unknown_id_fails(self, invoke, initialized: Path) -> None:
+        invoke("add", "A")
+        tid = _first_id(initialized)
+        result = invoke("unlink", "zzzz", tid)
+        assert result.exit_code == 1
+        assert "No task found" in result.output
+
+
+# --------------------------------------------------------------------------
+# show
+# --------------------------------------------------------------------------
+class TestShow:
+    def test_show_displays_task_info(self, invoke, initialized: Path) -> None:
+        invoke("add", "my important task")
+        tid = _first_id(initialized)
+        result = invoke("show", tid)
+        assert result.exit_code == 0
+        assert "my important task" in result.output
+        assert tid in result.output
+
+    def test_show_displays_blockers(self, invoke, initialized: Path) -> None:
+        invoke("add", "A")
+        invoke("add", "B")
+        a_id, b_id = _ids(initialized)
+        invoke("link", a_id, b_id)
+        result = invoke("show", a_id)
+        assert result.exit_code == 0
+        assert b_id in result.output
+
+    def test_show_displays_blocks(self, invoke, initialized: Path) -> None:
+        """show should display what this task blocks (reverse direction)."""
+        invoke("add", "A")
+        invoke("add", "B")
+        a_id, b_id = _ids(initialized)
+        invoke("link", a_id, b_id)  # a depends on b
+        result = invoke("show", b_id)   # b blocks a
+        assert result.exit_code == 0
+        assert a_id in result.output
+
+    def test_show_unknown_id_fails(self, invoke, initialized: Path) -> None:
+        result = invoke("show", "zzzz")
+        assert result.exit_code == 1
+        assert "No task found" in result.output
+
+
+# --------------------------------------------------------------------------
+# list with deps column
+# --------------------------------------------------------------------------
+class TestListDeps:
+    def test_blocked_task_shown_in_list(self, invoke, initialized: Path) -> None:
+        invoke("add", "A")
+        invoke("add", "B")
+        a_id, b_id = _ids(initialized)
+        invoke("link", a_id, b_id)
+        result = invoke("list")
+        assert result.exit_code == 0
+        # Both tasks shown (neither is Done); blocked marker must appear
+        assert "blocked" in result.output.lower() or "⊘" in result.output
+
+    def test_no_dep_marker_when_unblocked(self, invoke, initialized: Path) -> None:
+        invoke("add", "A")
+        invoke("add", "B")
+        a_id, b_id = _ids(initialized)
+        invoke("link", a_id, b_id)
+        # Mark blocker done — A is no longer blocked
+        invoke("status", b_id, "done")
+        result = invoke("list", "--all")
+        assert result.exit_code == 0
+        # The "blocked" marker should NOT appear for A
+        lines = [l for l in result.output.splitlines() if a_id in l]
+        assert lines  # A is listed
+        assert not any("blocked" in l.lower() or "⊘" in l for l in lines)
+
+
+# --------------------------------------------------------------------------
+# status warns when blocked
+# --------------------------------------------------------------------------
+class TestStatusWithDeps:
+    def test_status_done_with_open_blocker_warns_but_succeeds(
+        self, invoke, initialized: Path
+    ) -> None:
+        invoke("add", "A")
+        invoke("add", "B")
+        a_id, b_id = _ids(initialized)
+        invoke("link", a_id, b_id)  # a depends on b (b is still Todo)
+        result = invoke("status", a_id, "done")
+        # Must succeed (exit 0) — warn only
+        assert result.exit_code == 0
+        assert _state(initialized)["tasks"][0]["status"] == "Done" or \
+               next(t for t in _state(initialized)["tasks"] if t["id"] == a_id)["status"] == "Done"
+        # Must print a warning
+        assert "warn" in result.output.lower() or "blocked" in result.output.lower() \
+               or "open" in result.output.lower() or b_id in result.output
+
+
+# --------------------------------------------------------------------------
+# remove auto-cleans deps
+# --------------------------------------------------------------------------
+class TestRemoveWithDeps:
+    def test_remove_blocker_cleans_dependent_ref(self, invoke, initialized: Path) -> None:
+        invoke("add", "A")
+        invoke("add", "B")
+        a_id, b_id = _ids(initialized)
+        invoke("link", a_id, b_id)  # a depends on b
+        result = invoke("remove", b_id)  # remove blocker b
+        assert result.exit_code == 0
+        tasks = _state(initialized)["tasks"]
+        a_task = next(t for t in tasks if t["id"] == a_id)
+        assert a_task["depends_on"] == []
+        # Should warn
+        assert a_id in result.output or "depend" in result.output.lower() or "clean" in result.output.lower()

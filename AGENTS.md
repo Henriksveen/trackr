@@ -26,7 +26,7 @@ Dep direction (never invert): `cli -> storage -> models -> errors`.
 ## Invariants
 
 - **Storage:** `<repo-root>/.tasks/state.json`. Constants: `STORE_DIRNAME`, `STATE_FILENAME`.
-- **Schema:** `{"version": 1, "tasks": [{id, description, status, created_at}]}`. Changing: bump `STATE_VERSION`, migrate in `load_tasks`, add load-old-file test.
+- **Schema:** `{"version": 2, "tasks": [{id, description, status, created_at, depends_on}]}`. `depends_on` is a list of blocker IDs (strings). Version 1 files (no `depends_on`) load transparently — tasks default to `[]`. Changing schema: bump `STATE_VERSION`, migrate in `load_tasks`, add load-old-file test.
 - **Atomic writes only:** temp file + fsync + `os.replace`. Never write `state.json` in place.
 - **Task IDs:** 4-char hex, collision-checked, widen on saturation. Matched case-insensitively.
 - **Status** persisted verbatim (`Todo`/`In Progress`/`Done`); input coerced via `Status.coerce`.

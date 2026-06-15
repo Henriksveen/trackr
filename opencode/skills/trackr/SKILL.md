@@ -5,7 +5,7 @@ description: Per-repo CLI task tracker. Use when working in a repo that has a .t
 
 ## What I do
 
-`trackr` is a per-repo CLI task tracker. State lives in `.tasks/state.json` at the repo root (Git-style discovery — works from any subdir). Tasks have: `id` (4-char hex), `description`, `status` (`Todo` / `In Progress` / `Done`), `created_at`.
+`trackr` is a per-repo CLI task tracker. State lives in `.tasks/state.json` at the repo root (Git-style discovery — works from any subdir). Tasks have: `id` (4-char hex), `description`, `status` (`Todo` / `In Progress` / `Done`), `created_at`, `depends_on` (list of blocker IDs).
 
 ---
 
@@ -31,7 +31,10 @@ trackr add "Refactor auth module"
 ```
 
 ### `trackr list [--all | -a]`
-List tasks in a table (ID, Description, Status, Created). `Done` tasks hidden by default; `--all` includes them. Prints summary line.
+List tasks in a table (ID, Description, Status, Deps, Created). `Done` tasks hidden by default; `--all` includes them. The **Deps** column shows:
+- `⊘ blocked (N)` — has N open blocker(s)
+- `✓ clear` — has deps but all are Done
+- `—` — no dependencies
 ```bash
 trackr list          # open tasks only
 trackr list --all    # everything, including Done
@@ -39,6 +42,7 @@ trackr list --all    # everything, including Done
 
 ### `trackr status <id> <new_status>`
 Update a task's status. Case-insensitive; accepts aliases (see below). No-op if already in that status (exit 0). Unknown ID or bad status → exit 1.
+If the task has open blockers and the new status is `In Progress` or `Done`, a warning is printed but the update proceeds (warn-only, not blocked).
 ```bash
 trackr status 7b2e "in progress"
 trackr status 7b2e wip    # same via alias
@@ -46,7 +50,25 @@ trackr status 7b2e done
 ```
 
 ### `trackr remove <id>`
-Delete a task permanently. Unknown ID → exit 1.
+Delete a task permanently. If other tasks depend on the deleted task, their `depends_on` lists are cleaned automatically and a warning is printed. Unknown ID → exit 1.
+
+### `trackr show <id>`
+Show full detail for one task: ID, description, status, created date + age, **Depends on** list (each blocker's id/status/description), **Blocks** list (reverse — tasks that depend on this one), and a blocked warning if applicable. Unknown ID → exit 1.
+```bash
+trackr show 7b2e
+```
+
+### `trackr link <id> <blocker-id>`
+Mark `<id>` as depending on `<blocker-id>` (`<blocker-id>` must finish before `<id>`). Rejected with exit 1 if: either ID unknown, self-link, or would create a cycle. Re-linking an existing dependency is a silent no-op (exit 0).
+```bash
+trackr link a3f9 b2c1   # a3f9 depends on b2c1
+```
+
+### `trackr unlink <id> <blocker-id>`
+Remove a dependency. Exit 1 if either ID unknown or the link doesn't exist.
+```bash
+trackr unlink a3f9 b2c1
+```
 
 ---
 
@@ -76,19 +98,29 @@ Delete a task permanently. Unknown ID → exit 1.
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "tasks": [
     {
       "id": "a3f9",
       "description": "Write integration tests",
       "status": "Todo",
-      "created_at": "2026-06-15T10:30:00+00:00"
+      "created_at": "2026-06-15T10:30:00+00:00",
+      "depends_on": ["b2c1"]
+    },
+    {
+      "id": "b2c1",
+      "description": "Design the API",
+      "status": "In Progress",
+      "created_at": "2026-06-15T09:00:00+00:00",
+      "depends_on": []
     }
   ]
 }
 ```
 
 - `status` is one of the exact strings `"Todo"`, `"In Progress"`, `"Done"`.
+- `depends_on` is a list of blocker task IDs (tasks that must be `Done` first).
+- Version 1 files (missing `depends_on`) load transparently; tasks get `depends_on: []`.
 - Writes are atomic (temp file + `os.replace`). Prefer CLI over hand-editing `state.json`.
 - Commit `.tasks/` alongside code — task history travels with the repo.
 
@@ -107,6 +139,9 @@ Common errors:
 | Unknown task ID | `No task found with ID '<id>'.` |
 | Bad status string | `Invalid status '<x>'. Valid statuses: Todo, In Progress, Done.` |
 | Empty description | `Task description must not be empty.` |
+| Self-dependency | `A task cannot depend on itself ('<id>').` |
+| Circular dependency | `Circular dependency: linking '<dep>' -> '<blocker>' would create a cycle.` |
+| Unlink not linked | `Task '<dep>' does not depend on '<blocker>'.` |
 
 ---
 
@@ -114,8 +149,10 @@ Common errors:
 
 1. `trackr init` — once at repo root (idempotent).
 2. `trackr add "<task>"` — record work as you plan it.
-3. `trackr list` — discover IDs before updating.
-4. `trackr status <id> "In Progress"` — when you start a task.
-5. `trackr status <id> done` — when finished.
-6. `trackr list --all` — audit open + completed work.
-7. Commit `.tasks/` with your code changes.
+3. `trackr link <id> <blocker-id>` — express ordering constraints.
+4. `trackr list` — discover IDs and see blocked tasks.
+5. `trackr show <id>` — inspect full dependency detail.
+6. `trackr status <id> "In Progress"` — when you start a task.
+7. `trackr status <id> done` — when finished.
+8. `trackr list --all` — audit open + completed work.
+9. Commit `.tasks/` with your code changes.
