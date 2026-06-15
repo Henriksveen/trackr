@@ -22,3 +22,16 @@ install:
 
 # Sync deps then run the full suite (pre-commit check)
 check: sync test
+
+# Install trackr opencode integration (skill + rule) into global config
+install-opencode:
+    mkdir -p ~/.config/opencode/skills
+    cp -r opencode/skills/trackr ~/.config/opencode/skills/
+    cp opencode/trackr.md ~/.config/opencode/
+    @echo ""
+    @echo "Skill + rule copied. To activate the always-on rule, add this to"
+    @echo "the \"instructions\" array in ~/.config/opencode/opencode.jsonc:"
+    @echo ""
+    @echo '    "@~/.config/opencode/trackr.md"'
+    @echo ""
+    @echo "(Skill works immediately — no config edit needed. Remove that line to disable the rule.)"

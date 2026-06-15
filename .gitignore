@@ -13,6 +13,8 @@ uv.lock
 # trackr's own local task state (dev/testing). Downstream repos commit theirs.
 .tasks/
 
+.opencode/
+
 # Editors / OS
 .idea/
 .vscode/

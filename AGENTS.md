@@ -44,8 +44,12 @@ uv run trackr <args>     # run CLI from source
 ```
 
 Or use `just` (run `just` to list recipes). Wraps the same commands:
-`just sync`, `just test`, `just check`, `just build`, `just install`.
+`just sync`, `just test`, `just check`, `just build`, `just install`, `just install-opencode`.
 
 ## When adding a command
 
-Logic in `storage.py`/`models.py`, thin command in `cli.py`, new failures as `TrackrError` subclasses, `@handle_errors` decorator, state writes via `save_tasks`. Test happy + error paths, assert persisted `state.json`. Update `docs/usage.md` and `README.md` in same change — public contract, keep in sync.
+Logic in `storage.py`/`models.py`, thin command in `cli.py`, new failures as `TrackrError` subclasses, `@handle_errors` decorator, state writes via `save_tasks`. Test happy + error paths, assert persisted `state.json`. Update `opencode/skills/trackr/SKILL.md` and `README.md` in same change — public contract, keep in sync.
+
+## OpenCode integration
+
+`opencode/skills/trackr/SKILL.md` is the **canonical agent-facing usage doc** for trackr. It ships via `just install-opencode` into `~/.config/opencode/skills/trackr/`. When any command, flag, status alias, schema field, or error message changes, update the skill (and `README.md`) in the same change.
