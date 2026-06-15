@@ -153,7 +153,7 @@ just test     # run full test suite
 just check    # sync + test (pre-commit gate)
 just build    # build wheel + sdist
 just install  # install trackr as a tool on PATH
-just install-opencode  # copy skill + rule into ~/.config/opencode/
+just install-opencode  # copy skill + rule + planner agent into ~/.config/opencode/
 ```
 
 ## License

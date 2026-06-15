@@ -53,3 +53,5 @@ Logic in `storage.py`/`models.py`, thin command in `cli.py`, new failures as `Tr
 ## OpenCode integration
 
 `opencode/skills/trackr/SKILL.md` is the **canonical agent-facing usage doc** for trackr. It ships via `just install-opencode` into `~/.config/opencode/skills/trackr/`. When any command, flag, status alias, schema field, or error message changes, update the skill (and `README.md`) in the same change.
+
+`opencode/agents/trackr-planner.md` is a **primary opencode agent** for conversational planning/brainstorming: it proposes milestone-sized tasks (with suggested tags + links), confirms before writing, and persists to `.tasks/`. It also ships via `just install-opencode` (into `~/.config/opencode/agents/`) and defers to the trackr skill for full CLI detail. Keep its verb list and granularity rule consistent with the skill when commands or the milestone contract change.
