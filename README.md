@@ -34,6 +34,21 @@ uv tool install .
 trackr --help
 ```
 
+## Task granularity
+
+A task is **one project-meeting bullet** — a feature, a migration, a milestone. Not an implementation step.
+
+If you'd put it on a personal afternoon checklist (*write tests*, *bump schema*, *update README*), it is too small. Those steps belong inside a task, not as separate tasks.
+
+| Track it in trackr | Do NOT create as a task |
+| --- | --- |
+| `Implement tags feature` | `Write failing tests for tags` |
+| `Add dependency graph to list output` | `Bump schema to v3` |
+| `Migrate storage to atomic writes` | `Add --tags flag to add command` |
+| `Add auth module` | `Update SKILL.md and README` |
+
+trackr = the project board. Your in-session todo list = implementation steps. Keep the layers separate.
+
 ## Usage
 
 ```bash
