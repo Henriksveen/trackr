@@ -43,6 +43,9 @@ uv run pytest -k <expr>  # focused run during TDD
 uv run trackr <args>     # run CLI from source
 ```
 
+Or use `just` (run `just` to list recipes). Wraps the same commands:
+`just sync`, `just test`, `just check`, `just build`, `just install`.
+
 ## When adding a command
 
 Logic in `storage.py`/`models.py`, thin command in `cli.py`, new failures as `TrackrError` subclasses, `@handle_errors` decorator, state writes via `save_tasks`. Test happy + error paths, assert persisted `state.json`. Update `docs/usage.md` and `README.md` in same change — public contract, keep in sync.

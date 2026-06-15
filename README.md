@@ -94,6 +94,16 @@ uv sync
 uv run python -m trackr --help   # run via module
 ```
 
+Recipes are also available via [`just`](https://just.systems) (run `just` to list them):
+
+```bash
+just sync     # install deps
+just test     # run full test suite
+just check    # sync + test (pre-commit gate)
+just build    # build wheel + sdist
+just install  # install trackr as a tool on PATH
+```
+
 ## License
 
 MIT
