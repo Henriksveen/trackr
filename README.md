@@ -97,6 +97,7 @@ trackr --version
 
 - `trackr link A B` means "A depends on B" — B must finish before A.
 - The `list` table shows a **Deps** column: `⊘ blocked (N)` when open blockers exist, `✓ clear` when all blockers are done, `—` when no deps.
+- **`list` output is sorted in pipeline order**: blockers appear above the tasks that depend on them. Tasks with no dependency relationship preserve their original insertion order. Edges to hidden (`Done`) tasks are ignored for ordering purposes. The stored order in `state.json` is never changed.
 - Moving a blocked task to `In Progress` or `Done` is allowed but prints a warning listing open blockers.
 - Deleting a blocker automatically removes it from all dependent tasks' `depends_on` lists and prints a warning.
 - Linking to yourself, or creating a cycle (A→B→A), is rejected with exit code 1.

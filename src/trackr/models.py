@@ -142,6 +142,75 @@ def open_blockers(task: Task, tasks: list[Task]) -> list[Task]:
     return result
 
 
+def topo_order(tasks: list[Task]) -> list[Task]:
+    """Return *tasks* sorted in pipeline order: every task appears after all
+    tasks it depends on (blockers first, dependents after).
+
+    Algorithm: stable Kahn's (BFS-based topological sort).
+    - Only edges whose target is present in *tasks* are considered, so a dep
+      pointing to a filtered-out or deleted task is silently ignored.
+    - Independent tasks preserve their original relative order (stable).
+    - Cycle-safe: if any tasks remain after the BFS (can only happen with
+      hand-edited state.json — ``link`` prevents cycles), they are appended
+      in their original order so nothing is ever dropped.
+    """
+    if not tasks:
+        return []
+
+    # Map lowercase id → original index (for stable tie-breaking)
+    index_of: dict[str, int] = {t.id.lower(): i for i, t in enumerate(tasks)}
+
+    # Build in-degree count, restricted to edges within this task set
+    indegree: dict[int, int] = {i: 0 for i in range(len(tasks))}
+    dependents: dict[int, list[int]] = {i: [] for i in range(len(tasks))}
+
+    for i, task in enumerate(tasks):
+        for dep_id in task.depends_on:
+            blocker_idx = index_of.get(dep_id.lower())
+            if blocker_idx is not None and blocker_idx != i:
+                indegree[i] += 1
+                dependents[blocker_idx].append(i)
+
+    # Seed queue with zero-indegree nodes in original order (stable)
+    from collections import deque
+    queue: deque[int] = deque(
+        i for i in range(len(tasks)) if indegree[i] == 0
+    )
+
+    result: list[Task] = []
+    while queue:
+        # Always take the earliest (by original index) to preserve stable order
+        idx = queue.popleft()
+        result.append(tasks[idx])
+        # Decrement dependents; enqueue newly-zero ones in sorted order
+        newly_free = []
+        for dep_idx in dependents[idx]:
+            indegree[dep_idx] -= 1
+            if indegree[dep_idx] == 0:
+                newly_free.append(dep_idx)
+        # Insert newly-freed nodes at the right position to maintain stability
+        newly_free.sort()
+        for nf in newly_free:
+            # Insert in order after any already-queued earlier-index nodes
+            inserted = False
+            for pos, q in enumerate(queue):
+                if nf < q:
+                    queue.insert(pos, nf)
+                    inserted = True
+                    break
+            if not inserted:
+                queue.append(nf)
+
+    # Cycle fallback: append any remaining nodes in original order
+    if len(result) < len(tasks):
+        emitted = {t.id for t in result}
+        for task in tasks:
+            if task.id not in emitted:
+                result.append(task)
+
+    return result
+
+
 def would_cycle(tasks: list[Task], dependent_id: str, blocker_id: str) -> bool:
     """Return True if adding ``dependent -> blocker`` would create a cycle.
 

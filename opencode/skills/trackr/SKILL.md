@@ -56,6 +56,8 @@ List tasks in a table (ID, Description, Status, Tags, Deps, Created). `Done` tas
 - `⊘ blocked (N)` — has N open blocker(s)
 - `✓ clear` — has deps but all are Done
 - `—` — no dependencies
+
+**Pipeline ordering:** rows are sorted so blockers always appear above the tasks that depend on them. Tasks with no dependency relationship preserve their original insertion order. Edges to hidden/filtered-out tasks are ignored for ordering. The stored `state.json` order is never modified.
 ```bash
 trackr list                          # open tasks only
 trackr list --all                    # everything, including Done

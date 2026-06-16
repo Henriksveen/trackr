@@ -24,7 +24,7 @@ from trackr.errors import (
     TaskNotFound,
     TrackrError,
 )
-from trackr.models import Status, Task, is_blocked, open_blockers, would_cycle
+from trackr.models import Status, Task, is_blocked, open_blockers, topo_order, would_cycle
 from trackr.storage import (
     find_repo_root,
     find_task,
@@ -173,6 +173,10 @@ def list_tasks(
     if tag:
         filter_tags = {t.lower() for t in tag}
         visible = [t for t in visible if any(tg.lower() in filter_tags for tg in t.tags)]
+
+    # Sort into pipeline order: blockers appear before the tasks that depend on them.
+    # Edges to tasks absent from visible (filtered out or Done) are silently ignored.
+    visible = topo_order(visible)
 
     if not tasks:
         console.print("[dim]No tasks yet. Add one with[/] [bold]trackr add \"...\"[/]")

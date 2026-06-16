@@ -549,3 +549,79 @@ class TestRemoveWithDeps:
         assert a_task["depends_on"] == []
         # Should warn
         assert a_id in result.output or "depend" in result.output.lower() or "clean" in result.output.lower()
+
+
+# --------------------------------------------------------------------------
+# list: topological ordering
+# --------------------------------------------------------------------------
+class TestListTopoOrder:
+    def test_blocker_appears_before_dependent_in_output(
+        self, invoke, initialized: Path
+    ) -> None:
+        # Add dependent first, then blocker — after linking, blocker must render first
+        invoke("add", "Dependent")
+        invoke("add", "Blocker")
+        dep_id, blk_id = _ids(initialized)
+        invoke("link", dep_id, blk_id)  # dep depends on blk → blk must come first
+
+        result = invoke("list")
+        assert result.exit_code == 0
+        out = result.output
+        # Both IDs appear; blocker's row comes before dependent's row
+        assert blk_id in out and dep_id in out
+        assert out.index(blk_id) < out.index(dep_id)
+
+    def test_stored_order_unchanged_after_link(
+        self, invoke, initialized: Path
+    ) -> None:
+        # Linking must NOT reorder the persisted tasks array
+        invoke("add", "A")
+        invoke("add", "B")
+        a_id, b_id = _ids(initialized)
+        original_order = _ids(initialized)
+        invoke("link", a_id, b_id)  # a depends on b
+        assert _ids(initialized) == original_order  # storage untouched
+
+    def test_chain_ordering_in_output(self, invoke, initialized: Path) -> None:
+        # Three tasks: C → B → A (A depends on B, B depends on C)
+        # Added in order: A, B, C
+        invoke("add", "Task A")
+        invoke("add", "Task B")
+        invoke("add", "Task C")
+        a_id, b_id, c_id = _ids(initialized)
+        invoke("link", a_id, b_id)  # a depends on b
+        invoke("link", b_id, c_id)  # b depends on c
+
+        result = invoke("list")
+        assert result.exit_code == 0
+        out = result.output
+        # Pipeline order: C before B before A
+        assert out.index(c_id) < out.index(b_id) < out.index(a_id)
+
+    def test_independent_tasks_preserve_insertion_order(
+        self, invoke, initialized: Path
+    ) -> None:
+        # No links — output order should match addition order
+        invoke("add", "First")
+        invoke("add", "Second")
+        invoke("add", "Third")
+        first_id, second_id, third_id = _ids(initialized)
+
+        result = invoke("list")
+        assert result.exit_code == 0
+        out = result.output
+        assert out.index(first_id) < out.index(second_id) < out.index(third_id)
+
+    def test_done_blocker_hidden_no_crash(self, invoke, initialized: Path) -> None:
+        # Blocker is Done (hidden by default), dependent is Todo — no crash, dependent shown
+        invoke("add", "Blocker")
+        invoke("add", "Dependent")
+        blk_id, dep_id = _ids(initialized)
+        invoke("link", dep_id, blk_id)
+        invoke("status", blk_id, "done")
+
+        result = invoke("list")
+        assert result.exit_code == 0
+        assert dep_id in result.output
+        # Blocker is Done, hidden by default
+        assert blk_id not in result.output
