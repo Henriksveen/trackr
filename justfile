@@ -29,7 +29,7 @@ install-opencode:
     mkdir -p ~/.config/opencode/agents
     cp -r opencode/skills/trackr ~/.config/opencode/skills/
     cp opencode/trackr.md ~/.config/opencode/
-    cp opencode/agents/trackr-planner.md ~/.config/opencode/agents/
+    cp opencode/agents/trackr.md ~/.config/opencode/agents/
     @echo ""
     @echo "Skill + rule + planner agent copied. To activate the always-on rule, add this to"
     @echo "the \"instructions\" array in ~/.config/opencode/opencode.jsonc:"
@@ -37,4 +37,4 @@ install-opencode:
     @echo '    "@~/.config/opencode/trackr.md"'
     @echo ""
     @echo "(Skill + agent work immediately — no config edit needed. Remove that line to disable the rule.)"
-    @echo "Switch into the planner via the agent picker: \"trackr-planner\". Restart opencode to load it."
+    @echo "Switch into the agent via the agent picker: \"trackr\". Restart opencode to load it."
