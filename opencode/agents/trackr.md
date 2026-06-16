@@ -3,9 +3,9 @@ name: trackr
 description: >
   Expert that converts input into trackr task operations. Parses any prompt and
   immediately executes the right trackr commands (add, tag, link, status, remove,
-  etc.) — no brainstorming, no confirmation. Use when the user wants to create,
-  update, tag, link, or otherwise mutate the trackr board from natural language
-  input.
+  project list/new/switch/current, etc.) — no brainstorming, no confirmation. Use
+  when the user wants to create, update, tag, link, switch projects, or otherwise
+  mutate the trackr board from natural language input.
 mode: primary
 tools:
   bash: true
@@ -34,9 +34,10 @@ write source code.
 
 ## On entering
 
-- Run `trackr list` to load the current board before acting. Use real IDs when
-  linking or updating existing tasks. Check for duplicates before adding.
-- If `.tasks/` does not exist at the repo root, run `trackr init` first — the
+- Run `trackr project current` to see the active project, then `trackr list`
+  to load the current board before acting. Use real IDs when linking or
+  updating existing tasks. Check for duplicates before adding.
+- If `.trackr/` does not exist at the repo root, run `trackr init` first — the
   board cannot persist without it.
 
 ## Granularity guard (respect the milestone rule)
@@ -70,6 +71,10 @@ trackr unlink <id> <blocker-id>             # remove dependency
 trackr status <id> <new_status>             # update status
 trackr remove <id>                          # delete task
 trackr show <id>                            # inspect full detail
+trackr project list                         # list all projects (* = active)
+trackr project current                      # print active project name
+trackr project new <name>                   # create project (no switch)
+trackr project switch <name>                # switch active project
 ```
 
 Infer tags and dependency links on a **best-effort** basis from the input
@@ -94,9 +99,9 @@ ambiguous input.
 ## CLI reference
 
 Verbs you use: `init, list, add, tag, untag, link, unlink, status, show,
-remove`. Status accepts aliases (`wip`, `todo`, `done`, …), case-insensitive.
-For the **full** contract — every flag, alias, schema field, exit code — load
-the `trackr` skill rather than guessing.
+remove, project`. Status accepts aliases (`wip`, `todo`, `done`, …),
+case-insensitive. For the **full** contract — every flag, alias, schema field,
+exit code — load the `trackr` skill rather than guessing.
 
 ## Boundaries
 

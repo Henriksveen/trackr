@@ -1,13 +1,14 @@
 # trackr
 
 A small, fast **per-repository CLI task tracker**. State is stored locally in a
-hidden `.tasks/` directory at the repo root — just like Git's `.git/` — so each
+hidden `.trackr/` directory at the repo root — just like Git's `.git/` — so each
 repository keeps its own independent task list.
 
 ## Features
 
-- Local-first: tasks live in `.tasks/state.json` at the repo root.
-- Works from any subdirectory (walks up to find `.tasks/`, Git-style).
+- Local-first: tasks live in `.trackr/<project>.json` at the repo root.
+- Works from any subdirectory (walks up to find `.trackr/`, Git-style).
+- Multiple projects per repo — switch between independent task groups with `trackr project switch`.
 - Short, unique 4-char hex task IDs.
 - Clean Rich-rendered table output.
 - Case-insensitive status input with aliases (`wip`, `done`, `in progress`, ...).
@@ -52,7 +53,7 @@ trackr = the project board. Your in-session todo list = implementation steps. Ke
 ## Usage
 
 ```bash
-trackr init                          # create .tasks/ in the current repo
+trackr init                          # create .trackr/ in the current repo
 trackr add "Write the README"        # add a task (status: Todo)
 trackr add "Fix login bug" --tags "bug,urgent"  # add with tags
 trackr list                          # show open tasks (hides Done)
@@ -103,15 +104,39 @@ trackr --version
 - Linking to yourself, or creating a cycle (A→B→A), is rejected with exit code 1.
 - Re-linking an already-existing dependency is a silent no-op (exit 0).
 
+## Projects
+
+Each repo can have multiple independent task groups called **projects**. The initial project is named `default`.
+
+```bash
+trackr project list               # list all projects (* marks the active one)
+trackr project current            # print the active project name
+trackr project new <name>         # create a new project (does not switch)
+trackr project switch <name>      # switch the active project
+```
+
+All task commands (`add`, `list`, `status`, etc.) operate on the **active** project. To work with a different group, switch first:
+
+```bash
+trackr project new frontend
+trackr project switch frontend
+trackr add "Build navigation component"
+trackr project switch default
+```
+
+Project names must use only `[A-Za-z0-9._-]` characters and must not be empty or `active`.
+
 ## Storage layout
 
 ```
 your-repo/
-└── .tasks/
-    └── state.json
+└── .trackr/
+    ├── active          # plain text — name of the active project
+    ├── default.json    # default project state
+    └── frontend.json   # another project (if created)
 ```
 
-`state.json` (schema version 3):
+`default.json` (schema version 3):
 
 ```json
 {

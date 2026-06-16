@@ -17,7 +17,7 @@ class NotInitialized(TrackrError):
 
     def __init__(self) -> None:
         super().__init__(
-            "Not a trackr repository (no .tasks/ directory found).\n"
+            "Not a trackr repository (no .trackr/ directory found).\n"
             "Run 'trackr init' first."
         )
 
@@ -57,7 +57,7 @@ class CorruptState(TrackrError):
     def __init__(self, path: str) -> None:
         super().__init__(
             f"State file at '{path}' is corrupt or unreadable. "
-            "Fix or delete the .tasks/ directory and re-run 'trackr init'."
+            "Fix or delete the .trackr/ directory and re-run 'trackr init'."
         )
 
 
@@ -110,3 +110,33 @@ class NotTagged(TrackrError):
         super().__init__(
             f"Task '{task_id}' is not tagged '{label}'."
         )
+
+
+class ProjectExists(TrackrError):
+    """Raised when trying to create a project that already exists."""
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+        super().__init__(f"Project '{name}' already exists.")
+
+
+class ProjectNotFound(TrackrError):
+    """Raised when a named project does not exist in the store."""
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+        super().__init__(
+            f"No project named '{name}'. Run 'trackr project list' to see available projects."
+        )
+
+
+class InvalidProjectName(TrackrError):
+    """Raised when a project name is empty, reserved, or contains illegal characters."""
+
+    def __init__(self, name: str, reason: str = "") -> None:
+        self.name = name
+        msg = f"Invalid project name '{name}'"
+        if reason:
+            msg += f": {reason}"
+        msg += ". Names must be non-empty, use only [A-Za-z0-9._-], and not be 'active'."
+        super().__init__(msg)

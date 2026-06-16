@@ -17,21 +17,29 @@ from trackr import __version__
 from trackr.errors import (
     CircularDependency,
     EmptyDescription,
+    InvalidProjectName,
     InvalidTag,
     NotLinked,
     NotTagged,
+    ProjectExists,
+    ProjectNotFound,
     SelfDependency,
     TaskNotFound,
     TrackrError,
 )
 from trackr.models import Status, Task, is_blocked, open_blockers, topo_order, would_cycle
 from trackr.storage import (
+    DEFAULT_PROJECT,
+    create_project,
     find_repo_root,
     find_task,
     generate_id,
     init_store,
+    list_projects,
     load_tasks,
+    read_active,
     save_tasks,
+    set_active,
 )
 
 app = typer.Typer(
@@ -39,6 +47,13 @@ app = typer.Typer(
     no_args_is_help=True,
     help="A per-repository CLI task tracker (Git-style local state).",
 )
+
+project_app = typer.Typer(
+    add_completion=False,
+    no_args_is_help=True,
+    help="Manage projects (task groups) within this repository.",
+)
+app.add_typer(project_app, name="project")
 
 console = Console()
 err_console = Console(stderr=True)
@@ -109,7 +124,8 @@ def init() -> None:
     rel = store.relative_to(Path.cwd()) if store.is_relative_to(Path.cwd()) else store
     if created:
         console.print(
-            f"[green]Initialized empty task tracker in[/] [bold]{rel}/[/]"
+            f"[green]Initialized empty task tracker in[/] [bold]{rel}/[/] "
+            f"(project: [bold]{DEFAULT_PROJECT}[/])"
         )
     else:
         console.print(
@@ -517,6 +533,51 @@ def show(
         lines.append(f"[bold red]⊘ Blocked[/] by: [bold]{ids}[/]")
 
     console.print(Panel("\n".join(lines), title=f"Task {task.id}", expand=False))
+
+
+# --------------------------------------------------------------------------
+# project subcommands
+# --------------------------------------------------------------------------
+@project_app.command(name="list")
+@handle_errors
+def project_list() -> None:
+    """List all projects, marking the active one with '*'."""
+    root = find_repo_root()
+    active = read_active(root)
+    projects = list_projects(root)
+    for name in projects:
+        marker = "[bold green]*[/] " if name == active else "  "
+        console.print(f"{marker}[bold]{name}[/]")
+
+
+@project_app.command(name="new")
+@handle_errors
+def project_new(
+    name: str = typer.Argument(..., help="Name of the new project."),
+) -> None:
+    """Create a new project (does not switch the active project)."""
+    root = find_repo_root()
+    create_project(root, name)
+    console.print(f"[green]Created project[/] [bold]{name}[/]")
+
+
+@project_app.command(name="switch")
+@handle_errors
+def project_switch(
+    name: str = typer.Argument(..., help="Project to switch to."),
+) -> None:
+    """Switch the active project."""
+    root = find_repo_root()
+    set_active(root, name)
+    console.print(f"[green]Switched to project[/] [bold]{name}[/]")
+
+
+@project_app.command(name="current")
+@handle_errors
+def project_current() -> None:
+    """Print the name of the active project."""
+    root = find_repo_root()
+    console.print(read_active(root))
 
 
 if __name__ == "__main__":  # pragma: no cover

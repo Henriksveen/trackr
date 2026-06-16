@@ -1,107 +1,130 @@
-# Graph Report - .  (2026-06-15)
+# Graph Report - .  (2026-06-16)
 
 ## Corpus Check
-- Corpus is ~5,074 words - fits in a single context window. You may not need a graph.
+- Corpus is ~13,207 words - fits in a single context window. You may not need a graph.
 
 ## Summary
-- 151 nodes · 364 edges · 12 communities (8 shown, 4 thin omitted)
-- Extraction: 80% EXTRACTED · 20% INFERRED · 0% AMBIGUOUS · INFERRED: 73 edges (avg confidence: 0.63)
+- 343 nodes · 1105 edges · 19 communities (12 shown, 7 thin omitted)
+- Extraction: 77% EXTRACTED · 23% INFERRED · 0% AMBIGUOUS · INFERRED: 259 edges (avg confidence: 0.59)
 - Token cost: 0 input · 0 output
 
 ## Community Hubs (Navigation)
-- [[_COMMUNITY_CLI Test Suite|CLI Test Suite]]
-- [[_COMMUNITY_Status & Aliases|Status & Aliases]]
-- [[_COMMUNITY_App Entry & Repo Discovery|App Entry & Repo Discovery]]
-- [[_COMMUNITY_Task Model & Persistence|Task Model & Persistence]]
-- [[_COMMUNITY_Init & Error Handling|Init & Error Handling]]
-- [[_COMMUNITY_Architecture & CLI Commands|Architecture & CLI Commands]]
+- [[_COMMUNITY_Storage & Persistence Layer|Storage & Persistence Layer]]
+- [[_COMMUNITY_Task Domain Model|Task Domain Model]]
+- [[_COMMUNITY_CLI Commands & Error Handling|CLI Commands & Error Handling]]
+- [[_COMMUNITY_Dependency Linking Tests|Dependency Linking Tests]]
+- [[_COMMUNITY_Tag & Filter Tests|Tag & Filter Tests]]
+- [[_COMMUNITY_Status & Show Tests|Status & Show Tests]]
+- [[_COMMUNITY_OpenCode Agent & Docs|OpenCode Agent & Docs]]
+- [[_COMMUNITY_Error Classes|Error Classes]]
+- [[_COMMUNITY_Init & Remove Tests|Init & Remove Tests]]
+- [[_COMMUNITY_Add & Tag Tests|Add & Tag Tests]]
+- [[_COMMUNITY_Topological Sort Tests|Topological Sort Tests]]
 - [[_COMMUNITY_Test Fixtures|Test Fixtures]]
+- [[_COMMUNITY_Feature Documentation|Feature Documentation]]
+- [[_COMMUNITY_List Command Tests|List Command Tests]]
 - [[_COMMUNITY_ID Generation|ID Generation]]
-- [[_COMMUNITY_User-Facing Commands Docs|User-Facing Commands Docs]]
-- [[_COMMUNITY_Feature Overview Docs|Feature Overview Docs]]
-- [[_COMMUNITY_Schema Reference|Schema Reference]]
+- [[_COMMUNITY_Remove Command Tests|Remove Command Tests]]
+- [[_COMMUNITY_Unlink Tests|Unlink Tests]]
+- [[_COMMUNITY_Task IDs|Task IDs]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `Task` - 25 edges
-2. `invoke()` - 25 edges
-3. `Status` - 20 edges
-4. `NotInitialized` - 14 edges
-5. `CorruptState` - 13 edges
-6. `load_tasks()` - 13 edges
-7. `_state()` - 11 edges
-8. `_first_id()` - 11 edges
-9. `find_repo_root()` - 10 edges
-10. `save_tasks()` - 10 edges
+1. `invoke()` - 80 edges
+2. `Path` - 79 edges
+3. `Path` - 47 edges
+4. `Task` - 39 edges
+5. `Status` - 32 edges
+6. `load_tasks()` - 28 edges
+7. `_state()` - 26 edges
+8. `str` - 25 edges
+9. `save_tasks()` - 25 edges
+10. `_ids()` - 25 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `AGENTS.md - Atomic Writes` --references--> `save_tasks`  [INFERRED]
-  AGENTS.md → src/trackr/storage.py
-- `AGENTS.md - ID Generation` --references--> `generate_id`  [INFERRED]
-  AGENTS.md → src/trackr/storage.py
-- `README.md - Features` --semantically_similar_to--> `Usage Guide - Mental Model`  [INFERRED] [semantically similar]
-  README.md → docs/usage.md
-- `README.md - Commands` --semantically_similar_to--> `Usage Guide - Commands`  [INFERRED] [semantically similar]
-  README.md → docs/usage.md
-- `Path` --uses--> `NotInitialized`  [INFERRED]
+- `Task Granularity Rule` --semantically_similar_to--> `Agent Execution Workflow`  [INFERRED] [semantically similar]
+  README.md → opencode/agents/trackr.md
+- `TestGenerateId` --uses--> `NotInitialized`  [INFERRED]
+  tests/test_storage.py → src/trackr/errors.py
+- `TestTopoOrder` --uses--> `InvalidStatus`  [INFERRED]
+  tests/test_models.py → src/trackr/errors.py
+- `TestGenerateId` --uses--> `CorruptState`  [INFERRED]
+  tests/test_storage.py → src/trackr/errors.py
+- `TestGenerateId` --uses--> `ProjectExists`  [INFERRED]
   tests/test_storage.py → src/trackr/errors.py
 
 ## Import Cycles
 - None detected.
 
 ## Hyperedges (group relationships)
-- **Layered Persistence Flow: CLI → Storage → Models** — cli_add_command, storage_load_tasks, storage_save_tasks, models_Task [EXTRACTED 1.00]
-- **Status Input Coercion: Input → Aliases → Canonical** — models_Status, models_ALIASES, errors_InvalidStatus [EXTRACTED 1.00]
-- **Error Handling: Exception → Handler → User Message** — errors_TrackrError, cli_handle_errors, errors_NotInitialized [EXTRACTED 1.00]
+- **Trackr Module Architecture** — trackr_cli_module, trackr_storage_module, trackr_models_module, trackr_errors_module [EXTRACTED 1.00]
+- **Atomic Persistence Pattern** — trackr_storage_module, trackr_atomic_writes, trackr_storage_discovery [EXTRACTED 1.00]
+- **Schema Versioning System** — trackr_schema_v3, trackr_schema_migration, trackr_storage_module [EXTRACTED 1.00]
 
-## Communities (12 total, 4 thin omitted)
+## Communities (19 total, 7 thin omitted)
 
-### Community 0 - "CLI Test Suite"
-Cohesion: 0.16
-Nodes (12): invoke(), _first_id(), _ids(), Path, _state(), TestAdd, TestInit, TestList (+4 more)
+### Community 0 - "Storage & Persistence Layer"
+Cohesion: 0.09
+Nodes (40): bool, Path, str, Task, _active_path(), Path, str, _state_path() (+32 more)
 
-### Community 1 - "Status & Aliases"
-Cohesion: 0.13
-Nodes (9): Enum, _ALIASES, Status, str, TestStatusCoerce, TestTaskSerde, InvalidStatus, Status (+1 more)
+### Community 1 - "Task Domain Model"
+Cohesion: 0.09
+Nodes (19): Enum, bool, Status, str, str, Task, TestGraphHelpers, TestStatusCoerce (+11 more)
 
-### Community 2 - "App Entry & Repo Discovery"
-Cohesion: 0.13
-Nodes (10): __version__, app, TestFindRepoRoot, TestFindTask, init(), list_tasks(), remove(), status() (+2 more)
-
-### Community 3 - "Task Model & Persistence"
-Cohesion: 0.26
-Nodes (12): Path, Task, Path, TestInit, TestLoadSave, CorruptState, init_store(), load_tasks() (+4 more)
-
-### Community 4 - "Init & Error Handling"
+### Community 2 - "CLI Commands & Error Handling"
 Cohesion: 0.17
-Nodes (10): init command, Exception, init_store, TestInit (storage), add(), AlreadyInitialized, EmptyDescription, NotInitialized (+2 more)
+Nodes (29): Exception, bool, str, add(), link(), list_tasks(), _main(), _parse_tags() (+21 more)
 
-### Community 5 - "Architecture & CLI Commands"
-Cohesion: 0.23
-Nodes (14): AGENTS.md - Architecture, AGENTS.md - TDD Rule, AGENTS.md - Atomic Writes, AGENTS.md - ID Generation, add command, handle_errors, list command, remove command (+6 more)
+### Community 3 - "Dependency Linking Tests"
+Cohesion: 0.18
+Nodes (6): _ids(), Path, TestLink, TestListDeps, TestListTopoOrder, TestShow
 
-### Community 6 - "Test Fixtures"
+### Community 4 - "Tag & Filter Tests"
+Cohesion: 0.15
+Nodes (4): invoke(), TestListTagFilter, TestMisc, TestProject
+
+### Community 5 - "Status & Show Tests"
+Cohesion: 0.14
+Nodes (5): _first_id(), TestShowTags, TestStatus, TestTagCommand, TestUntagCommand
+
+### Community 6 - "OpenCode Agent & Docs"
+Cohesion: 0.12
+Nodes (18): opencode/agents/trackr.md, Atomic Write Pattern, trackr CLI Application, cli.py, Agent Execution Workflow, Error Handling Pattern, errors.py, Task Granularity Rule (+10 more)
+
+### Community 8 - "Init & Remove Tests"
+Cohesion: 0.15
+Nodes (5): TestInit, TestListShowsTags, TestRemoveWithDeps, TestRequiresInit, TestStatusWithDeps
+
+### Community 9 - "Add & Tag Tests"
+Cohesion: 0.21
+Nodes (4): str, _state(), TestAdd, TestTagAdd
+
+### Community 11 - "Test Fixtures"
 Cohesion: 0.33
 Nodes (6): CliRunner, MonkeyPatch, initialized(), Path, runner(), workdir()
 
+### Community 12 - "Feature Documentation"
+Cohesion: 0.33
+Nodes (6): Blocked Task Warning, Task Dependencies, Pipeline Ordering Algorithm, Schema Migration Strategy, Schema Version 3, Tags Feature
+
 ## Knowledge Gaps
-- **10 isolated node(s):** `MonkeyPatch`, `__version__`, `_ALIASES`, `TestInit (storage)`, `AGENTS.md - TDD Rule` (+5 more)
+- **13 isolated node(s):** `MonkeyPatch`, `errors.py`, `Task ID Generation`, `Project Management`, `TDD Development Rule` (+8 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **4 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **7 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Task` connect `Status & Aliases` to `App Entry & Repo Discovery`, `Task Model & Persistence`, `Architecture & CLI Commands`, `ID Generation`?**
-  _High betweenness centrality (0.194) - this node is a cross-community bridge._
-- **Why does `invoke()` connect `CLI Test Suite` to `Test Fixtures`?**
-  _High betweenness centrality (0.158) - this node is a cross-community bridge._
-- **Why does `Status` connect `Status & Aliases` to `App Entry & Repo Discovery`, `Task Model & Persistence`, `Architecture & CLI Commands`, `ID Generation`?**
-  _High betweenness centrality (0.098) - this node is a cross-community bridge._
-- **Are the 12 inferred relationships involving `Task` (e.g. with `Path` and `Status`) actually correct?**
-  _`Task` has 12 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 23 inferred relationships involving `invoke()` (e.g. with `.test_add_persists_task()` and `.test_description_is_trimmed()`) actually correct?**
-  _`invoke()` has 23 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 10 inferred relationships involving `Status` (e.g. with `InvalidStatus` and `Status`) actually correct?**
-  _`Status` has 10 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 9 inferred relationships involving `NotInitialized` (e.g. with `Path` and `init_store`) actually correct?**
-  _`NotInitialized` has 9 INFERRED edges - model-reasoned connections that need verification._
+- **Why does `invoke()` connect `Tag & Filter Tests` to `Dependency Linking Tests`, `Status & Show Tests`, `Init & Remove Tests`, `Add & Tag Tests`, `Test Fixtures`, `List Command Tests`, `Remove Command Tests`, `Unlink Tests`?**
+  _High betweenness centrality (0.199) - this node is a cross-community bridge._
+- **Why does `Task` connect `Task Domain Model` to `Storage & Persistence Layer`, `CLI Commands & Error Handling`, `Topological Sort Tests`, `ID Generation`?**
+  _High betweenness centrality (0.109) - this node is a cross-community bridge._
+- **Why does `Status` connect `Task Domain Model` to `Storage & Persistence Layer`, `CLI Commands & Error Handling`, `Topological Sort Tests`, `ID Generation`?**
+  _High betweenness centrality (0.069) - this node is a cross-community bridge._
+- **Are the 78 inferred relationships involving `invoke()` (e.g. with `.test_add_persists_task()` and `.test_description_is_trimmed()`) actually correct?**
+  _`invoke()` has 78 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 7 inferred relationships involving `Path` (e.g. with `CorruptState` and `InvalidProjectName`) actually correct?**
+  _`Path` has 7 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 30 inferred relationships involving `Task` (e.g. with `bool` and `str`) actually correct?**
+  _`Task` has 30 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 26 inferred relationships involving `Status` (e.g. with `bool` and `str`) actually correct?**
+  _`Status` has 26 INFERRED edges - model-reasoned connections that need verification._

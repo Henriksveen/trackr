@@ -2,8 +2,8 @@
 
 For any non-trivial or multi-step task in a git repo:
 
-- If `.tasks/` exists at the repo root → use trackr to track tasks.
-- If substantial work is starting and no `.tasks/` exists → offer to run `trackr init`.
+- If `.trackr/` exists at the repo root → use trackr to track tasks.
+- If substantial work is starting and no `.trackr/` exists → offer to run `trackr init`.
 - Skip for throwaway / one-shot tasks.
 
 **Granularity:** trackr tasks are **milestone-sized** — one project-meeting bullet (a feature, a migration, a deliverable). Implementation steps (write tests, bump schema, edit a model, update docs) stay in the TodoWrite session list. Do **not** mirror TodoWrite items into trackr 1:1.
@@ -17,4 +17,4 @@ For any non-trivial or multi-step task in a git repo:
 
 For full CLI usage (commands, aliases, schema, exit codes), load the `trackr` skill.
 
-**Opt-out:** if this repo's AGENTS.md disables trackr, or `.tasks/` is intentionally absent, do not use trackr.
+**Opt-out:** if this repo's AGENTS.md disables trackr, or `.trackr/` is intentionally absent, do not use trackr.

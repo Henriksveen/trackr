@@ -2,7 +2,7 @@
 
 Every test runs inside a throwaway ``tmp_path`` directory (via
 ``monkeypatch.chdir``) so the real repository is never touched and each test
-gets its own isolated ``.tasks/`` store.
+gets its own isolated ``.trackr/`` store.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ from trackr.storage import init_store
 
 @pytest.fixture
 def workdir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Chdir into an isolated temp directory; yield it. No .tasks/ yet."""
+    """Chdir into an isolated temp directory; yield it. No .trackr/ yet."""
     monkeypatch.chdir(tmp_path)
     return tmp_path
 

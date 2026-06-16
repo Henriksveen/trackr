@@ -11,19 +11,23 @@ import json
 import re
 from pathlib import Path
 
-from trackr.storage import STATE_FILENAME, STORE_DIRNAME
+from trackr.storage import ACTIVE_FILENAME, DEFAULT_PROJECT, STORE_DIRNAME
 
 
-def _state(root: Path) -> dict:
-    return json.loads((root / STORE_DIRNAME / STATE_FILENAME).read_text())
+def _state(root: Path, project: str | None = None) -> dict:
+    """Read the state JSON for the given project (default: active project)."""
+    if project is None:
+        active_path = root / STORE_DIRNAME / ACTIVE_FILENAME
+        project = active_path.read_text().strip() if active_path.is_file() else DEFAULT_PROJECT
+    return json.loads((root / STORE_DIRNAME / f"{project}.json").read_text())
 
 
-def _ids(root: Path) -> list[str]:
-    return [t["id"] for t in _state(root)["tasks"]]
+def _ids(root: Path, project: str | None = None) -> list[str]:
+    return [t["id"] for t in _state(root, project)["tasks"]]
 
 
-def _first_id(root: Path) -> str:
-    return _ids(root)[0]
+def _first_id(root: Path, project: str | None = None) -> str:
+    return _ids(root, project)[0]
 
 
 # --------------------------------------------------------------------------
@@ -33,7 +37,7 @@ class TestInit:
     def test_creates_store(self, invoke, workdir: Path) -> None:
         result = invoke("init")
         assert result.exit_code == 0
-        assert (workdir / STORE_DIRNAME / STATE_FILENAME).is_file()
+        assert (workdir / STORE_DIRNAME / f"{DEFAULT_PROJECT}.json").is_file()
         assert "Initialized" in result.stdout
 
     def test_rerun_is_graceful(self, invoke, workdir: Path) -> None:
@@ -625,3 +629,127 @@ class TestListTopoOrder:
         assert dep_id in result.output
         # Blocker is Done, hidden by default
         assert blk_id not in result.output
+
+
+# --------------------------------------------------------------------------
+# project subcommands
+# --------------------------------------------------------------------------
+class TestProject:
+    # --- project current ---------------------------------------------------
+    def test_project_current_shows_default(self, invoke, initialized: Path) -> None:
+        result = invoke("project", "current")
+        assert result.exit_code == 0
+        assert DEFAULT_PROJECT in result.output
+
+    # --- project list ------------------------------------------------------
+    def test_project_list_shows_default(self, invoke, initialized: Path) -> None:
+        result = invoke("project", "list")
+        assert result.exit_code == 0
+        assert DEFAULT_PROJECT in result.output
+
+    def test_project_list_marks_active_with_asterisk(
+        self, invoke, initialized: Path
+    ) -> None:
+        result = invoke("project", "list")
+        assert result.exit_code == 0
+        # Active project must be visually marked
+        assert "*" in result.output
+
+    def test_project_list_shows_all_projects(
+        self, invoke, initialized: Path
+    ) -> None:
+        invoke("project", "new", "sprint1")
+        invoke("project", "new", "sprint2")
+        result = invoke("project", "list")
+        assert "sprint1" in result.output
+        assert "sprint2" in result.output
+        assert DEFAULT_PROJECT in result.output
+
+    # --- project new -------------------------------------------------------
+    def test_project_new_creates_project(
+        self, invoke, initialized: Path
+    ) -> None:
+        result = invoke("project", "new", "sprint1")
+        assert result.exit_code == 0
+        assert (initialized / STORE_DIRNAME / "sprint1.json").is_file()
+
+    def test_project_new_does_not_switch_active(
+        self, invoke, initialized: Path
+    ) -> None:
+        invoke("project", "new", "sprint1")
+        result = invoke("project", "current")
+        assert DEFAULT_PROJECT in result.output
+
+    def test_project_new_duplicate_fails(
+        self, invoke, initialized: Path
+    ) -> None:
+        invoke("project", "new", "sprint1")
+        result = invoke("project", "new", "sprint1")
+        assert result.exit_code == 1
+        assert "sprint1" in result.output
+
+    def test_project_new_invalid_name_fails(
+        self, invoke, initialized: Path
+    ) -> None:
+        result = invoke("project", "new", "bad/name")
+        assert result.exit_code == 1
+
+    # --- project switch ----------------------------------------------------
+    def test_project_switch_changes_active(
+        self, invoke, initialized: Path
+    ) -> None:
+        invoke("project", "new", "sprint1")
+        result = invoke("project", "switch", "sprint1")
+        assert result.exit_code == 0
+        cur = invoke("project", "current")
+        assert "sprint1" in cur.output
+
+    def test_project_switch_unknown_fails(
+        self, invoke, initialized: Path
+    ) -> None:
+        result = invoke("project", "switch", "ghost")
+        assert result.exit_code == 1
+        assert "ghost" in result.output
+
+    # --- project isolation -------------------------------------------------
+    def test_tasks_scoped_to_active_project(
+        self, invoke, initialized: Path
+    ) -> None:
+        """Tasks added to default are NOT visible after switching project."""
+        invoke("add", "task in default")
+        invoke("project", "new", "other")
+        invoke("project", "switch", "other")
+
+        result = invoke("list")
+        assert result.exit_code == 0
+        assert "task in default" not in result.output
+
+    def test_tasks_persist_per_project(
+        self, invoke, initialized: Path
+    ) -> None:
+        invoke("add", "default task")
+        invoke("project", "new", "other")
+        invoke("project", "switch", "other")
+        invoke("add", "other task")
+
+        # Verify via state files
+        default_tasks = _state(initialized, DEFAULT_PROJECT)["tasks"]
+        other_tasks = _state(initialized, "other")["tasks"]
+
+        assert any(t["description"] == "default task" for t in default_tasks)
+        assert any(t["description"] == "other task" for t in other_tasks)
+        assert not any(t["description"] == "other task" for t in default_tasks)
+        assert not any(t["description"] == "default task" for t in other_tasks)
+
+    def test_switch_back_restores_tasks(
+        self, invoke, initialized: Path
+    ) -> None:
+        invoke("add", "task in default")
+        invoke("project", "new", "other")
+        invoke("project", "switch", "other")
+        invoke("add", "task in other")
+
+        invoke("project", "switch", DEFAULT_PROJECT)
+        result = invoke("list")
+        assert "task in default" in result.output
+        assert "task in other" not in result.output

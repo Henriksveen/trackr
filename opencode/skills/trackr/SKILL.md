@@ -1,11 +1,11 @@
 ---
 name: trackr
-description: Per-repo CLI task tracker. Use when working in a repo that has a .tasks/ directory, or when the user asks to track tasks, manage todos, update task status, log progress, or use trackr. Provides full usage: commands, status aliases, IDs, schema, workflow loop.
+description: Per-repo CLI task tracker. Use when working in a repo that has a .trackr/ directory, or when the user asks to track tasks, manage todos, update task status, log progress, or use trackr. Provides full usage: commands, status aliases, IDs, schema, workflow loop.
 ---
 
 ## What I do
 
-`trackr` is a per-repo CLI task tracker. State lives in `.tasks/state.json` at the repo root (Git-style discovery — works from any subdir). Tasks have: `id` (4-char hex), `description`, `status` (`Todo` / `In Progress` / `Done`), `created_at`, `depends_on` (list of blocker IDs), `tags` (list of free-form label strings).
+`trackr` is a per-repo CLI task tracker. State lives in `.trackr/<project>.json` at the repo root (Git-style discovery — works from any subdir). The active project is tracked in `.trackr/active`. Tasks have: `id` (4-char hex), `description`, `status` (`Todo` / `In Progress` / `Done`), `created_at`, `depends_on` (list of blocker IDs), `tags` (list of free-form label strings).
 
 ---
 
@@ -40,7 +40,7 @@ uv run trackr <args>         # from within the trackr project dir
 ## Commands
 
 ### `trackr init`
-Create `.tasks/state.json` in the current directory. Idempotent — safe to re-run.
+Create `.trackr/default.json` and `.trackr/active` in the current directory. Idempotent — safe to re-run. Initial project is named `default`.
 
 ### `trackr add "<description>" [--tags t1,t2]`
 Add a task. Auto-assigns a unique 4-char hex ID; status starts as `Todo`. Blank/whitespace description rejected (exit 1). Optional `--tags` accepts a comma-separated list of labels.
@@ -109,6 +109,32 @@ trackr unlink a3f9 b2c1
 
 ---
 
+## Project subcommands
+
+Each repo supports multiple independent task groups called **projects**. The initial project is `default`.
+
+### `trackr project list`
+List all projects. The active project is marked with `*`.
+
+### `trackr project current`
+Print the name of the active project.
+
+### `trackr project new <name>`
+Create a new project. Does **not** switch the active project. Name must use `[A-Za-z0-9._-]`, must not be empty or `active`.
+
+### `trackr project switch <name>`
+Set the active project. All subsequent task commands operate on this project. Exit 1 if project doesn't exist.
+
+```bash
+trackr project list
+trackr project new frontend
+trackr project switch frontend
+trackr add "Build nav"          # lands in frontend project
+trackr project switch default
+```
+
+---
+
 ## Status values & aliases
 
 | Stored verbatim | Accepted input (case-insensitive) |
@@ -129,8 +155,10 @@ trackr unlink a3f9 b2c1
 
 ```
 <repo-root>/
-└── .tasks/
-    └── state.json
+└── .trackr/
+    ├── active          # plain text — active project name
+    ├── default.json    # default project state
+    └── <name>.json     # additional projects
 ```
 
 ```json
@@ -161,8 +189,8 @@ trackr unlink a3f9 b2c1
 - `depends_on` is a list of blocker task IDs (tasks that must be `Done` first).
 - `tags` is a list of free-form label strings.
 - Version 1 files (missing `depends_on`) and version 2 files (missing `tags`) load transparently; tasks get missing fields defaulted to `[]`.
-- Writes are atomic (temp file + `os.replace`). Prefer CLI over hand-editing `state.json`.
-- Commit `.tasks/` alongside code — task history travels with the repo.
+- Writes are atomic (temp file + `os.replace`). Prefer CLI over hand-editing state files.
+- Commit `.trackr/` alongside code — task history travels with the repo.
 
 ---
 
@@ -183,6 +211,9 @@ Common errors:
 | Circular dependency | `Circular dependency: linking '<dep>' -> '<blocker>' would create a cycle.` |
 | Unlink not linked | `Task '<dep>' does not depend on '<blocker>'.` |
 | Untag label not present | `Task '<id>' is not tagged '<label>'.` |
+| Project already exists | `Project '<name>' already exists.` |
+| Project not found | `No project named '<name>'. Run 'trackr project list'…` |
+| Invalid project name | `Invalid project name '<name>'…` |
 
 ---
 
@@ -196,4 +227,4 @@ Common errors:
 6. `trackr status <id> "In Progress"` — when you start a task.
 7. `trackr status <id> done` — when finished.
 8. `trackr list --all` — audit open + completed work.
-9. Commit `.tasks/` with your code changes.
+9. Commit `.trackr/` with your code changes.
