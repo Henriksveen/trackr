@@ -18,7 +18,7 @@ build:
 
 # Install trackr as a tool on your PATH
 install:
-    uv tool install .
+    uv tool install . --force --reinstall --no-cache
 
 # Sync deps then run the full suite (pre-commit check)
 check: sync test
