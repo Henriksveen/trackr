@@ -49,9 +49,9 @@ Or use `just` (run `just` to list recipes). Wraps the same commands:
 
 ## When adding a command
 
-Logic in `storage.py`/`models.py`, thin command in `cli.py`, new failures as `TrackrError` subclasses, `@handle_errors` decorator, state writes via `save_tasks`. Test happy + error paths, assert persisted state file. Update `opencode/skills/trackr/SKILL.md` and `README.md` in same change — public contract, keep in sync.
+Logic in `storage.py`/`models.py`, thin command in `cli.py`, new failures as `TrackrError` subclasses, `@handle_errors` decorator, state writes via `save_tasks`. Test happy + error paths, assert persisted state file. Update `opencode/skills/trackr/SKILL.md` in the same change — it is the canonical public contract.
 
-`opencode/skills/trackr/SKILL.md` is the **canonical agent-facing usage doc** for trackr. It ships via `just install-opencode` into `~/.config/opencode/skills/trackr/`. When any command, flag, status alias, schema field, or error message changes, update the skill (and `README.md`) in the same change.
+`opencode/skills/trackr/SKILL.md` is the **canonical agent-facing usage doc** for trackr. It ships via `just install-opencode` into `~/.config/opencode/skills/trackr/`. When any command, flag, status alias, schema field, or error message changes, update the skill in the same change. Update `README.md` only if the install steps or the usage command list change — README is intentionally minimal (install + usage only) and is not a mirror of the skill.
 
 `opencode/agents/trackr.md` is a **primary opencode agent** that converts natural language input into trackr task operations (add, tag, link, status, remove, project list/new/switch/current, etc.) — no confirmation, executes directly. It ships via `just install-opencode` (into `~/.config/opencode/agents/`) and defers to the trackr skill for full CLI detail. Keep its verb list and granularity rule consistent with the skill when commands or the milestone contract change.
 
